@@ -16,6 +16,12 @@
 8. [DB 스키마 (ER 다이어그램)](#8-db-스키마-er-다이어그램)
 9. [신뢰 경계 (Trust Boundary)](#9-신뢰-경계-trust-boundary)
 10. [개발 단계별 로드맵](#10-개발-단계별-로드맵)
+11. [모노레포 전체 파일 트리](#11-모노레포-전체-파일-트리)
+12. [Flutter 파일 의존성 그래프](#12-flutter-파일-의존성-그래프)
+13. [Flutter 파일별 역할 일람](#13-flutter-파일별-역할-일람)
+14. [Hono API 파일 의존성 그래프](#14-hono-api-파일-의존성-그래프)
+15. [API 파일별 역할 일람](#15-api-파일별-역할-일람)
+16. [마이그레이션 파일 적용 순서](#16-마이그레이션-파일-적용-순서)
 
 ---
 
@@ -515,3 +521,558 @@ gantt
 | 🟢 초록 테두리 | 신뢰 가능 / 안전한 영역 |
 
 > 이 다이어그램들은 [Mermaid](https://mermaid.js.org/)로 작성되어 GitHub에서 자동으로 렌더링됩니다.
+
+---
+
+## 11. 모노레포 전체 파일 트리
+
+```mermaid
+graph LR
+    ROOT["📁 ondevice-ledger-agent/"]
+
+    ROOT --> APPS["📁 apps/"]
+    ROOT --> MIGRATIONS["📁 migrations/"]
+    ROOT --> DOCS["📁 docs/"]
+    ROOT --> SCRIPTS["📁 scripts/"]
+    ROOT --> GH["📁 .github/workflows/"]
+    ROOT --> README["📄 README.md"]
+
+    APPS --> MOBILE["📁 mobile/\n(Flutter)"]
+    APPS --> API["📁 api/\n(Hono + Workers)"]
+
+    MOBILE --> MOBILE_LIB["📁 lib/"]
+    MOBILE --> MOBILE_TEST["📁 test/"]
+    MOBILE --> PUBSPEC["📄 pubspec.yaml"]
+    MOBILE --> ANDROID["📁 android/"]
+    MOBILE --> IOS["📁 ios/"]
+
+    MOBILE_LIB --> MAIN["📄 main.dart"]
+    MOBILE_LIB --> APP["📄 app.dart"]
+    MOBILE_LIB --> LIB_CORE["📁 core/"]
+    MOBILE_LIB --> LIB_DATA["📁 data/"]
+    MOBILE_LIB --> LIB_DOMAIN["📁 domain/"]
+    MOBILE_LIB --> LIB_PRES["📁 presentation/"]
+    MOBILE_LIB --> LIB_SVC["📁 services/"]
+
+    API --> API_SRC["📁 src/"]
+    API --> API_TEST["📁 test/"]
+    API --> WRANGLER["📄 wrangler.toml"]
+    API --> PKG_JSON["📄 package.json"]
+
+    API_SRC --> IDX["📄 index.ts"]
+    API_SRC --> API_ROUTES["📁 routes/"]
+    API_SRC --> API_MW["📁 middleware/"]
+    API_SRC --> API_DB["📁 db/"]
+    API_SRC --> API_VAL["📁 validators/"]
+    API_SRC --> API_TYPES["📄 types.ts"]
+
+    MIGRATIONS --> M001["📄 001_initial.sql"]
+    MIGRATIONS --> M002["📄 002_audit_log.sql"]
+
+    DOCS --> IMPL["📄 IMPLEMENTATION_PLAN.md"]
+    DOCS --> ARCH["📄 architecture.md"]
+    DOCS --> API_DOC["📄 api.md"]
+    DOCS --> PROMPTS["📄 agent-prompts.md"]
+
+    SCRIPTS --> SETUP["📄 setup.sh"]
+    SCRIPTS --> MIGRATE["📄 migrate.sh"]
+
+    GH --> DEPLOY_YML["📄 api-deploy.yml"]
+    GH --> TEST_YML["📄 flutter-test.yml"]
+
+    style ROOT fill:#f8fafc,stroke:#64748b
+    style MOBILE fill:#dbeafe,stroke:#3b82f6
+    style API fill:#fef9c3,stroke:#eab308
+    style MIGRATIONS fill:#fce7f3,stroke:#ec4899
+    style DOCS fill:#f0fdf4,stroke:#22c55e
+```
+
+---
+
+## 12. Flutter 파일 의존성 그래프
+
+### 12-1. 진입점 및 라우팅
+
+```mermaid
+graph LR
+    subgraph entry["진입점"]
+        MAIN["main.dart\n• ProviderScope 설정\n• runApp 호출"]
+        APP["app.dart\n• MaterialApp.router\n• GoRouter 설정\n• 테마 설정"]
+    end
+
+    subgraph screens["화면 (presentation/)"]
+        LOGIN["auth/login_screen.dart"]
+        HOME["home/home_screen.dart"]
+        ADD["transaction/\nadd_transaction_screen.dart"]
+        CONFIRM["agent/\nagent_confirm_sheet.dart"]
+        AMBIG["agent/\nagent_ambiguous_sheet.dart"]
+    end
+
+    MAIN -->|"주입"| APP
+    APP -->|"/login"| LOGIN
+    APP -->|"/home"| HOME
+    APP -->|"/add"| ADD
+    HOME -->|"showModalBottomSheet"| CONFIRM
+    CONFIRM -->|"모호할 때"| AMBIG
+    HOME -->|"push"| ADD
+
+    style entry fill:#f0fdf4,stroke:#22c55e
+    style screens fill:#dbeafe,stroke:#3b82f6
+```
+
+### 12-2. Presentation → Provider → Repository 의존성
+
+```mermaid
+graph TD
+    subgraph PRES["📁 presentation/"]
+        LOGIN_S["auth/login_screen.dart"]
+        HOME_S["home/home_screen.dart"]
+        NL_BAR["home/widgets/\nnatural_language_input_bar.dart"]
+        TX_TILE["home/widgets/\ntransaction_list_tile.dart"]
+        SUMMARY["home/widgets/\nmonthly_summary_card.dart"]
+        ADD_S["transaction/\nadd_transaction_screen.dart"]
+        CAT_SEL["transaction/widgets/\ncategory_selector.dart"]
+        CONFIRM_S["agent/agent_confirm_sheet.dart"]
+        AMBIG_S["agent/agent_ambiguous_sheet.dart"]
+    end
+
+    subgraph PROV["📁 providers (Riverpod)"]
+        LOGIN_P["auth/login_provider.dart\nAuthNotifier"]
+        HOME_P["home/home_provider.dart\nmonthlyTransactionsProvider\nsummaryProvider"]
+        AGENT_P["agent/agent_provider.dart\nAgentNotifier\nidle→processing→confirm→error"]
+        ADD_P["transaction/\nadd_transaction_provider.dart"]
+        SYNC_P["SyncStatusProvider\n(services/sync_service.dart 구독)"]
+    end
+
+    subgraph REPO["📁 data/repositories/"]
+        AUTH_REPO["auth_repository.dart\n로그인/로그아웃/세션"]
+        TX_REPO["transaction_repository.dart\n로컬 우선 read/write"]
+    end
+
+    LOGIN_S --> LOGIN_P
+    HOME_S --> HOME_P
+    HOME_S --> SYNC_P
+    NL_BAR --> AGENT_P
+    TX_TILE --> HOME_P
+    SUMMARY --> HOME_P
+    ADD_S --> ADD_P
+    ADD_S --> CAT_SEL
+    CONFIRM_S --> AGENT_P
+    AMBIG_S --> AGENT_P
+
+    LOGIN_P --> AUTH_REPO
+    HOME_P --> TX_REPO
+    ADD_P --> TX_REPO
+    AGENT_P --> TX_REPO
+
+    style PRES fill:#dbeafe,stroke:#3b82f6
+    style PROV fill:#ede9fe,stroke:#8b5cf6
+    style REPO fill:#fef9c3,stroke:#eab308
+```
+
+### 12-3. Data 레이어 파일 의존성
+
+```mermaid
+graph TD
+    subgraph REPO["📁 data/repositories/"]
+        TX_REPO["transaction_repository.dart\n• 로컬 캐시 우선 읽기\n• 낙관적 write\n• sync 큐 적재"]
+        AUTH_REPO["auth_repository.dart\n• Supabase 세션 관리\n• JWT 갱신"]
+    end
+
+    subgraph LOCAL["📁 data/local/"]
+        DB["database.dart\n• Drift DB 설정\n• 테이블 등록\n• migration 버전 관리"]
+        TX_TABLE["tables/transactions_table.dart\n• 컬럼 정의\n• 인덱스"]
+        SQ_TABLE["tables/sync_queue_table.dart\n• operation/status/retry_count"]
+        TX_DAO["dao/transactions_dao.dart\n• watchByMonth()\n• insert()\n• softDelete()"]
+        SQ_DAO["dao/sync_queue_dao.dart\n• getPending()\n• incrementRetry()\n• markFailed()"]
+    end
+
+    subgraph REMOTE["📁 data/remote/"]
+        TX_API["transaction_api.dart\n• POST /api/transactions\n• GET /api/transactions\n• DELETE /api/transactions/:id"]
+        AUTH_API["auth_api.dart\n• Supabase signIn\n• refreshSession"]
+    end
+
+    subgraph CORE_NET["📁 core/network/"]
+        DIO["dio_client.dart\n• Dio 싱글턴\n• baseUrl, timeout"]
+        INTERCEPTOR["auth_interceptor.dart\n• JWT 자동 첨부\n• 401 시 refresh 재시도"]
+    end
+
+    TX_REPO --> TX_DAO
+    TX_REPO --> SQ_DAO
+    TX_REPO --> TX_API
+    AUTH_REPO --> AUTH_API
+
+    TX_DAO --> DB
+    SQ_DAO --> DB
+    DB --> TX_TABLE
+    DB --> SQ_TABLE
+
+    TX_API --> DIO
+    AUTH_API --> DIO
+    DIO --> INTERCEPTOR
+
+    style REPO fill:#fef9c3,stroke:#eab308
+    style LOCAL fill:#dcfce7,stroke:#22c55e
+    style REMOTE fill:#fce7f3,stroke:#ec4899
+    style CORE_NET fill:#fee2e2,stroke:#ef4444
+```
+
+### 12-4. Domain 및 Agent 파일 의존성
+
+```mermaid
+graph TD
+    subgraph AGENT_FILES["📁 domain/agent/"]
+        AGENT_SVC["ledger_agent_service.dart\n• buildPrompt(utterance, today)\n• infer(prompt) via LiteRT-LM\n• parseModelOutput(rawJson)\n• fallbackAmountExtract(text)"]
+        INTENT["ledger_intent.dart\n• enum IntentType\n• class LedgerIntent\n• class ParsedAction\n• fromJson() / toJson()"]
+    end
+
+    subgraph MODEL_FILES["📁 domain/models/"]
+        TX_MODEL["transaction.dart\n• id, amount, date\n• categoryId, memo\n• rawUtterance, source\n• copyWith()"]
+        CAT_MODEL["category.dart\n• id, label, emoji"]
+    end
+
+    subgraph CORE_UTILS["📁 core/"]
+        DATE_UTIL["utils/date_utils.dart\n• parseKoreanRelativeDate()\n• '어제'→DateTime\n• '지난주'→DateTime"]
+        AMT_UTIL["utils/amount_utils.dart\n• parseKoreanAmount()\n• '만이천원'→12000"]
+        UUID_UTIL["utils/uuid.dart\n• generateId() → UUIDv7"]
+        CATEGORIES["constants/categories.dart\n• kCategories (8개 고정)\n• findById()"]
+    end
+
+    subgraph SVC["📁 services/"]
+        MODEL_DL["model_download_service.dart\n• checkModelExists()\n• downloadModel(onProgress)\n• getModelPath()"]
+        SYNC_SVC["sync_service.dart\n• processQueue()\n• getRetryDelay()\n• notifyFailure()"]
+    end
+
+    subgraph CORE_CONN["📁 core/network/"]
+        CONN["connectivity.dart\n• onConnectivityChanged Stream\n• isOnline()"]
+    end
+
+    AGENT_SVC --> INTENT
+    AGENT_SVC --> DATE_UTIL
+    AGENT_SVC --> AMT_UTIL
+    AGENT_SVC --> CATEGORIES
+    AGENT_SVC -->|"LiteRT-LM 패키지\n(외부 의존성)"| LITERT(["litert_lm\n(pub.dev)"])
+
+    SYNC_SVC --> CONN
+    MODEL_DL --> UUID_UTIL
+
+    TX_MODEL --> CAT_MODEL
+
+    style AGENT_FILES fill:#dcfce7,stroke:#22c55e
+    style MODEL_FILES fill:#dbeafe,stroke:#3b82f6
+    style CORE_UTILS fill:#fee2e2,stroke:#ef4444
+    style SVC fill:#fce7f3,stroke:#ec4899
+```
+
+---
+
+## 13. Flutter 파일별 역할 일람
+
+### `main.dart` / `app.dart`
+
+| 파일 | 책임 | 주요 내용 |
+|------|------|-----------|
+| `main.dart` | 앱 진입점 | `ProviderScope` 감싸기, `runApp` |
+| `app.dart` | 앱 설정 | `MaterialApp.router`, `GoRouter` 라우트 정의, 테마 |
+
+### `core/` — 공통 유틸
+
+| 파일 | 책임 | 핵심 함수/클래스 |
+|------|------|-----------------|
+| `network/dio_client.dart` | Dio 싱글턴 | `dioClientProvider`, baseUrl, timeout 설정 |
+| `network/auth_interceptor.dart` | JWT 자동 처리 | `onRequest`: JWT 헤더 첨부, `onError`: 401 시 refresh |
+| `network/connectivity.dart` | 네트워크 상태 | `connectivityProvider` (Stream), `isOnline()` |
+| `utils/date_utils.dart` | 한국어 날짜 파싱 | `parseKoreanRelativeDate(text, now)` |
+| `utils/amount_utils.dart` | 한국어 금액 파싱 | `parseKoreanAmount(raw, utterance)` |
+| `utils/uuid.dart` | ID 생성 | `generateId()` → UUIDv7 문자열 |
+| `constants/categories.dart` | 고정 카테고리 | `kCategories` 리스트 8개, `findById(id)` |
+| `constants/api_endpoints.dart` | API URL | `ApiEndpoints.transactions`, `ApiEndpoints.summary` |
+| `errors/app_exception.dart` | 에러 타입 | `AppException`, `NetworkException`, `ParseException` |
+
+### `data/local/` — 로컬 DB (Drift)
+
+| 파일 | 책임 | 핵심 내용 |
+|------|------|-----------|
+| `database.dart` | Drift DB 설정 | `@DriftDatabase(tables: [...])`, `schemaVersion`, migration |
+| `tables/transactions_table.dart` | 거래 테이블 스키마 | 컬럼 정의, `deleted_at` soft delete |
+| `tables/sync_queue_table.dart` | sync 큐 스키마 | `operation`, `status`, `retry_count` |
+| `dao/transactions_dao.dart` | 거래 쿼리 | `watchByMonth()`, `insert()`, `softDelete()` |
+| `dao/sync_queue_dao.dart` | 큐 쿼리 | `getPending()`, `incrementRetry()`, `markFailed()`, `delete()` |
+
+### `data/remote/` — 서버 API 호출
+
+| 파일 | 책임 | 핵심 내용 |
+|------|------|-----------|
+| `transaction_api.dart` | 거래 API | `createTransaction()`, `fetchTransactions()`, `deleteTransaction()` |
+| `auth_api.dart` | 인증 API | Supabase `signIn()`, `signOut()`, `refreshSession()` |
+
+### `data/repositories/` — 로컬+리모트 조율
+
+| 파일 | 책임 | 핵심 내용 |
+|------|------|-----------|
+| `transaction_repository.dart` | 거래 저장소 | 로컬 우선 읽기, 낙관적 write, sync 큐 적재 |
+| `auth_repository.dart` | 인증 상태 | JWT 저장/삭제, 세션 유효성 확인 |
+
+### `domain/` — 비즈니스 로직
+
+| 파일 | 책임 | 핵심 내용 |
+|------|------|-----------|
+| `models/transaction.dart` | 거래 데이터 클래스 | 불변 클래스, `copyWith()`, `toJson()` / `fromJson()` |
+| `models/category.dart` | 카테고리 클래스 | `id`, `label`, `emoji` |
+| `agent/ledger_intent.dart` | intent 스키마 | `enum IntentType`, `class ParsedAction` |
+| `agent/ledger_agent_service.dart` | Gemma 파싱 | `parse(utterance, now)`, `buildPrompt()`, `parseModelOutput()` |
+
+### `presentation/` — UI 화면
+
+| 파일 | 책임 | 핵심 내용 |
+|------|------|-----------|
+| `auth/login_screen.dart` | 로그인 화면 | 이메일/비밀번호 입력, Supabase 로그인 버튼 |
+| `auth/login_provider.dart` | 로그인 상태 | `AuthNotifier`: loading / authenticated / error |
+| `home/home_screen.dart` | 메인 화면 | 월 선택, 거래 목록, 하단 NL 입력바 |
+| `home/home_provider.dart` | 홈 상태 | `monthlyTransactionsProvider`, `summaryProvider` |
+| `home/widgets/natural_language_input_bar.dart` | NL 입력창 | TextField + 전송 버튼, AgentNotifier 트리거 |
+| `home/widgets/transaction_list_tile.dart` | 거래 항목 | 스와이프 삭제, 금액/카테고리/날짜 표시 |
+| `home/widgets/monthly_summary_card.dart` | 월별 합계 | 총 지출, 카테고리별 금액 |
+| `transaction/add_transaction_screen.dart` | 거래 추가 폼 | 날짜 선택, 금액 입력, 카테고리 선택 |
+| `transaction/add_transaction_provider.dart` | 폼 상태 | 폼 필드 상태, submit 로직 |
+| `transaction/widgets/category_selector.dart` | 카테고리 선택 | 8개 카테고리 칩 그리드 |
+| `agent/agent_confirm_sheet.dart` | 확인 바텀시트 | ParsedAction 미리보기, 확인/수정/취소 버튼 |
+| `agent/agent_ambiguous_sheet.dart` | 재질문 UI | 모호한 필드 입력 요청 (카테고리 선택 등) |
+| `agent/agent_provider.dart` | 에이전트 상태 | `AgentNotifier`: idle→processing→confirm→error |
+
+### `services/` — 앱 서비스
+
+| 파일 | 책임 | 핵심 내용 |
+|------|------|-----------|
+| `sync_service.dart` | 오프라인 큐 처리 | `processQueue()`, exponential backoff, 실패 알림 |
+| `model_download_service.dart` | Gemma 모델 관리 | `checkModelExists()`, `downloadModel(onProgress)`, 파일 경로 반환 |
+
+---
+
+## 14. Hono API 파일 의존성 그래프
+
+### 14-1. 전체 파일 의존성
+
+```mermaid
+graph TD
+    subgraph ENTRY["진입점"]
+        IDX["src/index.ts\n• Hono 인스턴스 생성\n• 전역 미들웨어 등록\n• route 마운트\n• Workers export default"]
+    end
+
+    subgraph ROUTES["📁 src/routes/"]
+        TX_ROUTE["transactions.ts\n• POST /api/transactions\n• GET /api/transactions\n• GET /api/transactions/:id\n• DELETE /api/transactions/:id"]
+        SUM_ROUTE["summary.ts\n• GET /api/transactions/summary"]
+    end
+
+    subgraph MIDDLEWARE["📁 src/middleware/"]
+        AUTH_MW["auth.ts\n• JWT 검증 (jose)\n• c.set('userId', sub)\n• 401 반환"]
+        IDEM_MW["idempotency.ts\n• Idempotency-Key 헤더 확인\n• body.id 일치 확인"]
+    end
+
+    subgraph VALIDATORS["📁 src/validators/"]
+        TX_VAL["transaction.ts\n• createTransactionSchema (Zod)\n• deleteParamsSchema\n• queryParamsSchema"]
+    end
+
+    subgraph DB_FILES["📁 src/db/"]
+        DB_CLIENT["client.ts\n• Turso createClient()\n• 환경변수에서 URL/token"]
+        DB_QUERIES["queries.ts\n• insertTransaction()\n• fetchTransactions()\n• softDeleteTransaction()\n• fetchSummary()\n• insertAuditLog()"]
+    end
+
+    subgraph TYPES["타입"]
+        TYPES_F["types.ts\n• Env (Bindings)\n• Variables (userId)\n• TransactionRow"]
+    end
+
+    IDX --> TX_ROUTE
+    IDX --> SUM_ROUTE
+    IDX --> AUTH_MW
+
+    TX_ROUTE --> AUTH_MW
+    TX_ROUTE --> IDEM_MW
+    TX_ROUTE --> TX_VAL
+    TX_ROUTE --> DB_QUERIES
+
+    SUM_ROUTE --> AUTH_MW
+    SUM_ROUTE --> TX_VAL
+    SUM_ROUTE --> DB_QUERIES
+
+    DB_QUERIES --> DB_CLIENT
+
+    TX_ROUTE --> TYPES_F
+    SUM_ROUTE --> TYPES_F
+    AUTH_MW --> TYPES_F
+    DB_CLIENT --> TYPES_F
+
+    style ENTRY fill:#fef9c3,stroke:#eab308
+    style ROUTES fill:#dbeafe,stroke:#3b82f6
+    style MIDDLEWARE fill:#fee2e2,stroke:#ef4444
+    style VALIDATORS fill:#dcfce7,stroke:#22c55e
+    style DB_FILES fill:#fce7f3,stroke:#ec4899
+```
+
+### 14-2. 요청별 파일 실행 경로
+
+```mermaid
+graph LR
+    subgraph POST_TX["POST /api/transactions"]
+        direction TB
+        P1["index.ts\n(라우터 분기)"]
+        P2["middleware/auth.ts\nJWT 검증"]
+        P3["middleware/idempotency.ts\nkey 확인"]
+        P4["validators/transaction.ts\nZod 검증"]
+        P5["db/queries.ts\ninsertTransaction()"]
+        P6["db/queries.ts\ninsertAuditLog()"]
+        P7["db/client.ts\nTurso 연결"]
+        P1 --> P2 --> P3 --> P4 --> P5 --> P6 --> P7
+    end
+
+    subgraph GET_TX["GET /api/transactions"]
+        direction TB
+        G1["index.ts"]
+        G2["middleware/auth.ts"]
+        G3["validators/transaction.ts\nquery params 검증"]
+        G4["db/queries.ts\nfetchTransactions()"]
+        G5["db/client.ts"]
+        G1 --> G2 --> G3 --> G4 --> G5
+    end
+
+    subgraph DEL_TX["DELETE /api/transactions/:id"]
+        direction TB
+        D1["index.ts"]
+        D2["middleware/auth.ts"]
+        D3["db/queries.ts\nsoftDeleteTransaction()"]
+        D4["db/queries.ts\ninsertAuditLog()"]
+        D5["db/client.ts"]
+        D1 --> D2 --> D3 --> D4 --> D5
+    end
+```
+
+---
+
+## 15. API 파일별 역할 일람
+
+### `src/index.ts`
+
+```
+역할: Hono 앱 루트 설정
+- Hono 인스턴스 생성
+- 전역 CORS / logger 미들웨어
+- /api/transactions → transactions 라우터 마운트
+- /api/transactions/summary → summary 라우터 마운트
+- GET /api/health → 헬스체크 (인증 불필요)
+- export default app (Workers 엔트리포인트)
+```
+
+### `src/middleware/`
+
+| 파일 | 역할 | 동작 |
+|------|------|------|
+| `auth.ts` | JWT 검증 | `Authorization: Bearer {jwt}` 파싱 → `jose.jwtVerify()` → `c.set('userId', payload.sub)` → 실패 시 401 |
+| `idempotency.ts` | 중복 방지 게이트 | `Idempotency-Key` 헤더 존재 확인 → `body.id === key` 검증 → 불일치 시 400 |
+
+### `src/routes/`
+
+| 파일 | 엔드포인트 | 핵심 로직 |
+|------|-----------|-----------|
+| `transactions.ts` | `POST /api/transactions` | auth → idempotency → Zod 검증 → `insertTransaction()` → `insertAuditLog()` → 201 또는 200(duplicate) |
+| `transactions.ts` | `GET /api/transactions` | auth → query params 검증 → `fetchTransactions(userId, month)` → 200 |
+| `transactions.ts` | `DELETE /api/transactions/:id` | auth → `softDeleteTransaction(id, userId)` → `insertAuditLog()` → 200 |
+| `summary.ts` | `GET /api/transactions/summary` | auth → `fetchSummary(userId, month)` → 200 |
+
+### `src/validators/transaction.ts`
+
+```
+createTransactionSchema (Zod):
+  - id: UUID
+  - amount: number, positive, max 100_000_000
+  - date: string, regex /^\d{4}-\d{2}-\d{2}$/
+  - category_id: enum (8개 고정값)
+  - memo: string, max 200, optional
+  - raw_utterance: string, max 500, optional
+  - source: enum ['form', 'agent']
+
+queryParamsSchema:
+  - month: string, regex /^\d{4}-\d{2}$/, optional
+  - category_id: enum, optional
+```
+
+### `src/db/`
+
+| 파일 | 역할 | 핵심 내용 |
+|------|------|-----------|
+| `client.ts` | Turso 클라이언트 | `createClient({ url: env.TURSO_URL, authToken: env.TURSO_TOKEN })` |
+| `queries.ts` | SQL 쿼리 함수 | `insertTransaction()`: `INSERT ... ON CONFLICT(id) DO NOTHING` + rows_affected 확인 |
+| `queries.ts` | | `softDeleteTransaction()`: `UPDATE ... SET deleted_at = datetime('now') WHERE id = ? AND user_id = ?` |
+| `queries.ts` | | `fetchSummary()`: `GROUP BY category_id` aggregate 쿼리 |
+| `queries.ts` | | `insertAuditLog()`: 모든 write 이벤트 기록 |
+
+### `src/types.ts`
+
+```typescript
+// Workers 환경변수 바인딩
+type Env = {
+  TURSO_URL: string
+  TURSO_TOKEN: string
+  SUPABASE_JWT_SECRET: string
+}
+
+// Hono context 변수 (미들웨어가 설정)
+type Variables = {
+  userId: string
+}
+```
+
+### `wrangler.toml`
+
+```
+역할: Cloudflare Workers 배포 설정
+- name: ledger-agent-api
+- main: src/index.ts
+- compatibility_date
+- [vars]: 비민감 환경변수
+- secrets (별도 wrangler secret put으로 설정):
+    TURSO_URL, TURSO_TOKEN, SUPABASE_JWT_SECRET
+```
+
+---
+
+## 16. 마이그레이션 파일 적용 순서
+
+```mermaid
+flowchart LR
+    subgraph FILES["📁 migrations/"]
+        M001["001_initial.sql\n\n• CREATE TABLE transactions\n• CREATE TABLE categories\n• CREATE INDEX idx_transactions_user_date\n• CREATE INDEX idx_transactions_user_category"]
+        M002["002_audit_log.sql\n\n• CREATE TABLE audit_logs\n• CREATE INDEX idx_audit_logs_user\n• CREATE INDEX idx_audit_logs_record"]
+    end
+
+    subgraph LOCAL["📱 로컬 (Drift)"]
+        DRIFT_V1["schemaVersion 1\n• TransactionsTable\n• SyncQueueTable"]
+        DRIFT_V2["schemaVersion 2\n(향후 컬럼 추가 시)"]
+    end
+
+    subgraph SCRIPT["📁 scripts/migrate.sh"]
+        SH["turso db shell \$DB_NAME\n< migrations/001_initial.sql\n\nturso db shell \$DB_NAME\n< migrations/002_audit_log.sql"]
+    end
+
+    START(["최초 Turso DB 생성\nturso db create ledger-db"]) --> M001
+    M001 -->|"순서 보장"| M002
+    M002 --> DONE(["✅ 프로덕션 DB 준비 완료"])
+
+    SH -->|"실행"| M001
+
+    DRIFT_V1 -->|"앱 업데이트 시\nMigrationStrategy"| DRIFT_V2
+
+    style M001 fill:#fce7f3,stroke:#ec4899
+    style M002 fill:#fce7f3,stroke:#ec4899
+    style LOCAL fill:#dbeafe,stroke:#3b82f6
+    style SCRIPT fill:#fef9c3,stroke:#eab308
+```
+
+### 마이그레이션 적용 규칙
+
+| 규칙 | 내용 |
+|------|------|
+| **번호 순서 보장** | 001 → 002 → ... 반드시 순서대로 실행 |
+| **멱등성** | 모든 DDL에 `IF NOT EXISTS` 사용 |
+| **롤백 없음** | Turso는 DDL rollback 미지원. 문제 시 새 migration으로 fix-forward |
+| **Drift 별도 관리** | 서버 Turso 스키마와 Flutter Drift 스키마는 독립적으로 버전 관리 |
+| **컬럼 추가만** | v1에서는 컬럼 삭제/이름 변경 금지. 추가만 허용 |
