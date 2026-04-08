@@ -57,24 +57,45 @@ transactions.get('/', async (c) => {
     const userId = c.get('userId');
     const month = c.req.query('month'); // URL 끝에 ?month=2024-04 달고 온 파라미터 확인
 
+    const limit = Math.min(parseInt(c.req.query('limit') || '50', 10), 100);
+    const page = Math.max(parseInt(c.req.query('page') || '1', 10), 1);
+    const offset = (page - 1) * limit;
+
     const db = createDbClient(c.env.TURSO_DATABASE_URL, c.env.TURSO_AUTH_TOKEN);
 
     // 기본적으로 내 아이디의 기록이고 '삭제되지 않은(deleted_at IS NULL)' 것만 찾기
     let sql = `SELECT * FROM transactions WHERE user_id = ? AND deleted_at IS NULL`;
+    let countSql = `SELECT COUNT(*) as total FROM transactions WHERE user_id = ? AND deleted_at IS NULL`;
     let args: any[] = [userId];
 
-    // 달(month) 파라미터가 있다면 해당 달력 글자가 포함된 날짜만 찾기
     if (month) {
         sql += ` AND date LIKE ?`;
+        countSql += ` AND date LIKE ?`;
         args.push(`${month}-%`);
     }
 
-    // 최신순으로 정렬
-    sql += ` ORDER BY date DESC, created_at DESC`;
+    // 💡 [추가된 부분 3] 쿼리 끝에 정렬 및 LIMIT, OFFSET을 붙임
+    sql += ` ORDER BY date DESC, created_at DESC LIMIT ? OFFSET ?`;
 
     try {
-        const rs = await db.execute({ sql, args });
-        return c.json({ data: rs.rows });
+        // 💡 [추가된 부분 4] db.batch를 사용하여 두 쿼리를 한 번의 네트워크 통신으로 처리
+        const [rs, countRs] = await db.batch([
+            { sql, args: [...args, limit, offset] },
+            { sql: countSql, args }
+        ]);
+        const totalItems = Number(countRs.rows[0].total);
+        const totalPages = Math.ceil(totalItems / limit);
+        // 결과와 함께 페이지네이션 메타데이터 응답
+        return c.json({
+            data: rs.rows,
+            pagination: {
+                page,
+                limit,
+                totalItems,
+                totalPages,
+                hasNextPage: page < totalPages
+            }
+        });
     } catch (error) {
         return c.json({ error: 'Database error' }, 500);
     }
