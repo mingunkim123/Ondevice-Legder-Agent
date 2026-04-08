@@ -43,6 +43,7 @@ summary.get('/', async (c) => {
             by_category: rs.rows
         });
     } catch (error) {
+        console.error('[GET /api/transactions/summary] Database Error:', error);
         return c.json({ error: 'Database error' }, 500);
     }
 });

@@ -48,6 +48,7 @@ transactions.post('/', idempotencyMiddleware, async (c) => {
 
         return c.json({ id: data.id, message: 'Transaction created' }, 201);
     } catch (error) {
+        console.error('[POST /api/transactions] Database Error:', error);
         return c.json({ error: 'Database error' }, 500);
     }
 });
@@ -97,6 +98,7 @@ transactions.get('/', async (c) => {
             }
         });
     } catch (error) {
+        console.error('[GET /api/transactions] Database Error:', error);
         return c.json({ error: 'Database error' }, 500);
     }
 });
@@ -127,6 +129,7 @@ transactions.delete('/:id', async (c) => {
 
         return c.json({ message: 'Transaction deleted' });
     } catch (error) {
+        console.error('[DELETE /api/transactions/:id] Database Error:', error);
         return c.json({ error: 'Database error' }, 500);
     }
 });
