@@ -4,46 +4,39 @@
 
 ```mermaid
 graph TD
-    %% 사용자 입력 Layer
-    User("👤 사용자 입력\n'오늘 스벅 5000원 썼어'"):::human
-    
-    %% UI Layer (Presentation)
-    subgraph UI["📱 UI 화면층 (Presentation)"]
-        ChatBar["💬 자연어 입력 바\n(홈 화면 하단 고정)"]
-        ConfirmSheet["🤔 확인 바텀시트\n('이렇게 저장할까요?')"]
-        Fallback["✍️ 수동 폼 입력 화면\n(오류 대비용)"]
-    end
-    
-    %% Service Layer (Agent & Logic)
-    subgraph Service["🧠 에이전트 뇌층 (Service)"]
-        Prompt["📝 프롬프트 포장기\n(현재시간 + 규칙 부여)"]
-        Gemma[/"🤖 Gemma 1B 모델\n(인터넷 없이 기기 내 추론)"/]
-        Downloader["📦 ModelDownloadService\n(최초 1회 다운로드 관리)"]
-        Parser["⚙️ JSON 파서 & 검증\n(에이전트 대답을 규격에 맞춰 추출)"]
-    end
-    
-    %% Domain Layer (Data Schema)
-    subgraph Domain["📋 규격 정의층 (Domain)"]
-        Intent["LedgerIntent 객체\n(의도, 금액, 날짜, 카테고리)"]
-    end
-    
-    %% Core Repository (기존 Step2 시스템)
-    Repo[("💾 Transaction Repository\n(로컬 DB / 서버 API 연결부)")]
+    User("사용자 입력\n오늘 스벅 5000원 썼어"):::human
 
-    %% 데이터 흐름
+    subgraph UI [UI 화면층 Presentation]
+        ChatBar["자연어 입력 바\n홈 화면 하단 고정"]
+        ConfirmSheet["확인 바텀시트\n이렇게 저장할까요?"]
+        Fallback["수동 폼 입력 화면\n오류 대비용"]
+    end
+
+    subgraph Service [에이전트 서비스층 Service]
+        Prompt["프롬프트 포장기\n현재시간 + 규칙 부여"]
+        Gemma[/"Gemma 1B 모델\n인터넷 없이 기기 내 추론"/]
+        Downloader["ModelDownloadService\n최초 1회 다운로드 관리"]
+        Parser["JSON 파서 & 검증\n에이전트 대답을 규격에 맞춰 추출"]
+    end
+
+    subgraph Domain [규격 정의층 Domain]
+        Intent["LedgerIntent 객체\n의도, 금액, 날짜, 카테고리"]
+    end
+
+    Repo[("Transaction Repository\n로컬 DB / 서버 API 연결부")]
+
     User -->|글씨 전송| ChatBar
     ChatBar -->|텍스트 전달| Prompt
     Downloader -.->|1회성 모델 제공| Gemma
     Prompt -->|LLM에 질의| Gemma
     Gemma -->|JSON 형태의 답변| Parser
-    Parser -.->|해석 실패(모호할 때)| Fallback
-    Parser ==>|해석 성공 시| Intent
+    Parser -.->|해석 실패| Fallback
+    Parser ==>|해석 성공| Intent
     Intent ==>|사용자에게 보여주기| ConfirmSheet
-    ConfirmSheet -.->|거절/수정| Fallback
-    ConfirmSheet ==>|✅ 최종 승인 터치| Repo
+    ConfirmSheet -.->|거절 또는 수정| Fallback
+    ConfirmSheet ==>|최종 승인 터치| Repo
 
-    %% 스타일 설정
-    classDef human fill:#fff,stroke:#000,stroke-width:2px,stroke-dasharray: 5 5;
+    classDef human fill:#fff,stroke:#000,stroke-width:2px,stroke-dasharray:5 5
     style UI fill:#E8F5E9,stroke:#4CAF50,stroke-width:2px
     style Service fill:#E3F2FD,stroke:#2196F3,stroke-width:2px
     style Domain fill:#FFF3E0,stroke:#FF9800,stroke-width:2px
