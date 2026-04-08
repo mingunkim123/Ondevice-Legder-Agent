@@ -4,6 +4,34 @@
 
 ---
 
+## 통신 대상
+
+Flutter 앱은 두 곳과 직접 통신합니다.
+
+```
+Flutter App
+  ├─ Supabase         (인증 전용, Supabase SDK로 직접 통신)
+  └─ Cloudflare Workers API  (거래 데이터 CRUD, DIO로 HTTP REST)
+```
+
+### Supabase — 인증 전용
+
+Flutter SDK(`supabase_flutter`)를 통해 직접 호출합니다. 백엔드 API를 거치지 않습니다.
+
+| 용도 | 호출 | 파일 |
+|------|------|------|
+| OTP 이메일 발송 | `auth.signInWithOtp(email)` | `login_screen.dart` |
+| 로그인 상태 감지 | `auth.onAuthStateChange` | `main.dart` |
+| JWT 꺼내기 | `auth.currentSession.accessToken` | `dio_client.dart` |
+
+### Cloudflare Workers — 데이터 CRUD
+
+DIO HTTP 클라이언트로 호출합니다. 모든 요청에 위에서 꺼낸 JWT를 `Authorization: Bearer` 헤더로 첨부합니다.
+
+백엔드는 Supabase DB에 직접 접근하지 않습니다. `SUPABASE_JWT_SECRET`으로 토큰 서명만 검증하고, 실제 데이터는 Turso DB(libSQL)에서 읽고 씁니다.
+
+---
+
 ## 공통 규칙
 
 - 모든 요청에 `Authorization: Bearer <JWT>` 헤더 필요 (`GET /api/health` 제외)
