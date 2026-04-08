@@ -6,18 +6,100 @@
 
 ## 전체 흐름
 
+### 시스템 구성도
+
+```mermaid
+graph TB
+    subgraph Mobile["Flutter App"]
+        UI["UI (화면)"]
+        RP["Riverpod Provider"]
+        REPO["TransactionRepository"]
+        DIO["DIO HTTP Client\n(JWT 자동 주입)"]
+    end
+
+    subgraph Auth["Supabase"]
+        SA["Auth (OTP 로그인)"]
+        JWT["JWT 발급"]
+    end
+
+    subgraph Backend["Cloudflare Workers (Hono)"]
+        AM["Auth Middleware\nJWT 검증 → user_id 추출"]
+        IM["Idempotency Middleware\n중복 요청 방지"]
+        ZOD["Zod 스키마 검증"]
+        RT["Routes\n/transactions\n/summary"]
+    end
+
+    DB[("Turso DB\n(libSQL / SQLite)")]
+
+    UI --> RP --> REPO --> DIO
+    DIO -- "OTP 이메일 인증" --> SA --> JWT
+    JWT -- "Bearer Token 저장" --> DIO
+    DIO -- "HTTP REST\n+ Authorization: Bearer JWT" --> AM
+    AM --> IM --> ZOD --> RT --> DB
+    DB -- "응답 JSON" --> RT --> DIO --> REPO --> RP --> UI
 ```
-Flutter App
-  └─ Supabase Auth (OTP 로그인 → JWT 발급)
-  └─ DIO HTTP Client
-       └─ Authorization: Bearer <JWT>
-       └─ Idempotency-Key: <transaction-id>  (POST만)
-            └─ Cloudflare Workers (Hono)
-                 ├─ Auth Middleware (JWT 검증 → user_id 추출)
-                 ├─ Idempotency Middleware (중복 요청 방지)
-                 ├─ Zod 스키마 검증
-                 └─ Turso DB (libSQL)
+
+### 요청 처리 순서 (시퀀스)
+
+```mermaid
+sequenceDiagram
+    actor User
+    participant App as Flutter App
+    participant Supabase as Supabase Auth
+    participant API as Cloudflare Workers
+    participant DB as Turso DB
+
+    User->>App: 이메일 입력
+    App->>Supabase: OTP 요청
+    Supabase-->>User: 이메일로 OTP 발송
+    User->>App: OTP 입력
+    App->>Supabase: OTP 검증
+    Supabase-->>App: JWT 반환 (세션 저장)
+
+    Note over App,API: 이후 모든 요청에 JWT 자동 첨부
+
+    User->>App: 거래 추가 요청
+    App->>App: UUID v4 생성 (transaction id)
+    App->>API: POST /api/transactions<br/>Authorization: Bearer JWT<br/>Idempotency-Key: {id}
+    API->>API: JWT 검증 → user_id 추출
+    API->>API: Idempotency-Key 확인
+    API->>API: Zod 스키마 검증
+    API->>DB: INSERT INTO transactions
+    DB-->>API: OK
+    API-->>App: 201 { id, message }
+    App-->>User: 성공 표시 + 목록 갱신
+
+    User->>App: 거래 목록 요청
+    App->>API: GET /api/transactions?month=2024-04<br/>Authorization: Bearer JWT
+    API->>DB: SELECT WHERE user_id = ? AND date LIKE ?
+    DB-->>API: 거래 배열
+    API-->>App: 200 { data: [...] }
+    App-->>User: 목록 렌더링
 ```
+
+### 엔드포인트 한눈에 보기
+
+```mermaid
+graph LR
+    subgraph Endpoints["API 엔드포인트"]
+        H["GET /api/health"]
+        L["GET /api/transactions<br/>?month=YYYY-MM"]
+        S["GET /api/transactions/summary<br/>?month=YYYY-MM"]
+        C["POST /api/transactions"]
+        D["DELETE /api/transactions/:id"]
+    end
+
+    H:::open
+    L:::auth
+    S:::auth
+    C:::auth
+    D:::auth
+
+    classDef open fill:#e8f5e9,stroke:#4caf50
+    classDef auth fill:#e3f2fd,stroke:#2196f3
+```
+
+- 초록: 인증 불필요 / 파랑: `Authorization: Bearer JWT` 필수
 
 WebSocket/SSE는 사용하지 않으며, 모든 통신은 **HTTP REST**로만 이루어집니다.
 
