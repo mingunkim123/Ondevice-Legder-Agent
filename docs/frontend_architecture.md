@@ -2,11 +2,11 @@
 
 ## Flutter Frontend Folder Structure
 
-![Flutter Frontend Folder Structure](docs/images/flutter_folder_structure.png)
+![Flutter Frontend Folder Structure](images/flutter_folder_structure.png)
 
 ## Data Flow
 
-![Ledger Agent Data Flow](docs/images/flutter_data_flow.png)
+![Ledger Agent Data Flow](images/flutter_data_flow.png)
 
 ## 계층별 핵심 책임
 
