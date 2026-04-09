@@ -2,11 +2,11 @@
 
 ## Flutter Frontend Folder Structure
 
-![Flutter Frontend Folder Structure](/home/mingun/.gemini/antigravity/brain/3e2984cd-c267-414a-bfde-c6654288f09d/flutter_folder_structure_1775695255446.png)
+![Flutter Frontend Folder Structure](docs/images/flutter_folder_structure.png)
 
 ## Data Flow
 
-![Ledger Agent Data Flow](/home/mingun/.gemini/antigravity/brain/3e2984cd-c267-414a-bfde-c6654288f09d/flutter_data_flow_1775695271536.png)
+![Ledger Agent Data Flow](docs/images/flutter_data_flow.png)
 
 ## 계층별 핵심 책임
 
