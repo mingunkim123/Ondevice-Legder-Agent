@@ -99,9 +99,24 @@ class AgentConfirmSheet extends ConsumerWidget {
                       backgroundColor: isRiskyIntent ? Colors.red : null,
                       foregroundColor: isRiskyIntent ? Colors.white : null,
                     ),
-                    onPressed: () {
-                      ref.read(agentNotifierProvider.notifier).confirmIntent();
-                      Navigator.pop(context);
+                    onPressed: () async {
+                      await ref
+                          .read(agentNotifierProvider.notifier)
+                          .confirmIntent();
+                      if (context.mounted) {
+                        ScaffoldMessenger.of(context).showSnackBar(
+                          SnackBar(
+                            content: Text(
+                              isRiskyIntent
+                                  ? '정상적으로 삭제되었습니다.'
+                                  : '기록되었습니다: [${intent.categoryId ?? '분류없음'}] ${intent.amount?.toInt() ?? 0}원',
+                            ),
+                          ),
+                        );
+                        // 홈 스크린의 목록 즉시 갱신 (import 분리가 어렵다면 ref를 통해서만 갱신 가능)
+                        Navigator.pop(context);
+                        // 상태 리셋은 home_screen의 whenComplete에서 발생함
+                      }
                     },
                     child: Text(isRiskyIntent ? '삭제' : '저장'),
                   ),
