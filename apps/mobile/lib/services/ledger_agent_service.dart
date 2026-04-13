@@ -134,6 +134,21 @@ class LedgerAgentService {
         jsonMap['category_id'] = null;
       }
 
+      // Rule-based 보정 4: 금액이 음수인 경우 0으로 만들고 모호 상태 유발
+      if (jsonMap['amount'] != null && (jsonMap['amount'] as num) < 0) {
+        jsonMap['amount'] = 0;
+        jsonMap['ambiguity_reason'] = "금액이 음수입니다. 확인해주세요.";
+      }
+
+      // Rule-based 보정 5: 날짜가 미래인 경우 모호 상태 유발
+      if (jsonMap['date'] != null) {
+        final d = DateTime.tryParse(jsonMap['date'].toString());
+        if (d != null &&
+            d.isAfter(DateTime(now.year, now.month, now.day, 23, 59, 59))) {
+          jsonMap['ambiguity_reason'] = "미래 날짜입니다. 맞나요?";
+        }
+      }
+
       final intent = LedgerIntent.fromJson(jsonMap, userInput);
 
       // confidence 계산 규칙 적용
@@ -149,6 +164,11 @@ class LedgerAgentService {
               intent.type == IntentType.recordIncome) &&
           intent.amount == null) {
         intent.confidence = 0.5; // 강제로 ambiguous 상태로 이동
+      }
+
+      // 미래 날짜이거나 음수 금액 보정 시에도 사용자 확인을 유도
+      if (intent.ambiguityReason != null) {
+        intent.confidence = 0.5;
       }
 
       return intent;
