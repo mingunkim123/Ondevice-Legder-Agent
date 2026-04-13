@@ -8,61 +8,110 @@
 
 ## Step 3 완료 후 Frontend Folder Structure
 
-> 표기: `(기존)` 기존 파일 · `★ NEW` Step 3 신규 · `▲ MOD` Step 3 수정
+```mermaid
+graph TD
+    Root(["apps/mobile/lib/"]):::main
+    Root --- MainDart["main.dart"]:::file
 
-```
-apps/mobile/lib/
-├── main.dart
-│
-├── core/
-│   ├── constants/
-│   │   └── categories.dart
-│   ├── network/
-│   │   └── dio_client.dart
-│   ├── utils/                        ★ NEW 폴더
-│   │   ├── date_utils.dart           ★ NEW  한국어 상대 날짜 파서
-│   │   └── amount_utils.dart         ★ NEW  한국어 금액 파서
-│   └── exceptions/                   ★ NEW 폴더
-│       └── app_exception.dart        ★ NEW  에이전트 예외 클래스
-│
-├── data/
-│   ├── local/
-│   │   ├── tables/
-│   │   │   └── transactions_table.dart
-│   │   ├── database.dart
-│   │   └── database.g.dart
-│   └── repositories/
-│       └── transaction_repository.dart
-│
-├── domain/
-│   └── agent/
-│       ├── ledger_intent.dart
-│       └── prompt_manager.dart       ★ NEW  프롬프트 템플릿 관리
-│
-├── services/                         ★ NEW 폴더
-│   ├── model_download_service.dart   ★ NEW  모델 다운로드 관리
-│   └── ledger_agent_service.dart     ★ NEW  추론 + JSON 파싱
-│
-└── presentation/
-    ├── auth/
-    │   └── login_screen.dart
-    ├── home/
-    │   └── home_screen.dart          ▲ MOD  하단 입력바 추가
-    ├── transaction/
-    │   └── add_transaction_screen.dart
-    └── agent/                        ★ NEW 폴더
-        ├── agent_provider.dart       ★ NEW  에이전트 상태관리
-        ├── natural_language_input_bar.dart  ★ NEW  자연어 입력 바
-        ├── agent_confirm_sheet.dart  ★ NEW  확인 바텀시트
-        ├── agent_ambiguous_sheet.dart ★ NEW  모호 확인 시트
-        └── model_download_indicator.dart   ★ NEW  다운로드 진행률
+    Root --- Core["core/"]:::folder
+    Root --- Data["data/"]:::folder
+    Root --- Domain["domain/"]:::folder
+    Root --- Services["services/"]:::folder
+    Root --- Pres["presentation/"]:::folder
+
+    %% ── core ──
+    subgraph core_col [" "]
+        Core --- C1["constants/"]:::sub
+        C1 --- C1a["categories.dart"]:::file
+
+        Core --- C2["network/"]:::sub
+        C2 --- C2a["dio_client.dart"]:::file
+
+        Core --- C3["utils/"]:::newsub
+        C3 --- C3a["NEW\ndate_utils.dart"]:::newfile
+        C3 --- C3b["NEW\namount_utils.dart"]:::newfile
+
+        Core --- C4["exceptions/"]:::newsub
+        C4 --- C4a["NEW\napp_exception.dart"]:::newfile
+    end
+
+    %% ── data ──
+    subgraph data_col [" "]
+        Data --- D1["local/"]:::sub
+        D1 --- D1a["tables/"]:::sub
+        D1a --- D1a1["transactions_\ntable.dart"]:::file
+        D1 --- D1b["database.dart"]:::file
+        D1 --- D1c["database.g.dart"]:::file
+
+        Data --- D2["repositories/"]:::sub
+        D2 --- D2a["transaction_\nrepository.dart"]:::file
+    end
+
+    %% ── domain ──
+    subgraph domain_col [" "]
+        Domain --- Do1["models/"]:::sub
+        Domain --- Do2["agent/"]:::sub
+        Do2 --- Do2a["ledger_intent.dart"]:::file
+        Do2 --- Do2b["NEW\nprompt_manager\n.dart"]:::newfile
+    end
+
+    %% ── services ──
+    subgraph svc_col [" "]
+        Services --- S1["NEW\nmodel_download_\nservice.dart"]:::newfile
+        Services --- S2["NEW\nledger_agent_\nservice.dart"]:::newfile
+    end
+
+    %% ── presentation ──
+    subgraph pres_col [" "]
+        Pres --- P1["auth/"]:::sub
+        P1 --- P1a["login_screen.dart"]:::file
+
+        Pres --- P2["home/"]:::sub
+        P2 --- P2a["MOD\nhome_screen.dart"]:::modfile
+
+        Pres --- P3["transaction/"]:::sub
+        P3 --- P3a["add_transaction_\nscreen.dart"]:::file
+
+        Pres --- P4["agent/"]:::newsub
+        P4 --- P4a["NEW\nagent_provider\n.dart"]:::newfile
+        P4 --- P4b["NEW\nnatural_language_\ninput_bar.dart"]:::newfile
+        P4 --- P4c["NEW\nagent_confirm_\nsheet.dart"]:::newfile
+        P4 --- P4d["NEW\nagent_ambiguous_\nsheet.dart"]:::newfile
+        P4 --- P4e["NEW\nmodel_download_\nindicator.dart"]:::newfile
+    end
+
+    %% ── legend ──
+    subgraph Legend [범례]
+        L1["Main Folder"]:::main
+        L2["Folder"]:::folder
+        L3["Sub Folder"]:::sub
+        L4["Files"]:::file
+        L5["NEW Step 3"]:::newfile
+        L6["MOD Step 3"]:::modfile
+        L7["NEW Folder"]:::newsub
+    end
+
+    classDef main fill:#0097A7,stroke:#00796B,color:#fff,stroke-width:2px,rx:20
+    classDef folder fill:#FF9800,stroke:#F57C00,color:#fff,stroke-width:2px
+    classDef sub fill:#26A69A,stroke:#00897B,color:#fff,stroke-width:1px
+    classDef file fill:#E0E0E0,stroke:#9E9E9E,color:#333,stroke-width:1px
+    classDef newfile fill:#BBDEFB,stroke:#1565C0,color:#0D47A1,stroke-width:2px,stroke-dasharray:5 5
+    classDef modfile fill:#FFE0B2,stroke:#E65100,color:#BF360C,stroke-width:2px
+    classDef newsub fill:#26A69A,stroke:#1565C0,color:#fff,stroke-width:2px,stroke-dasharray:5 5
+
+    style core_col fill:none,stroke:none
+    style data_col fill:none,stroke:none
+    style domain_col fill:none,stroke:none
+    style svc_col fill:none,stroke:none
+    style pres_col fill:none,stroke:none
+    style Legend fill:#FAFAFA,stroke:#BDBDBD,stroke-width:1px
 ```
 
 | 구분 | 수량 |
 |------|------|
 | 기존 유지 | 9개 |
-| ★ 신규 생성 | 10개 |
-| ▲ 기존 수정 | 1개 (+pubspec.yaml) |
+| NEW 신규 생성 | 10개 |
+| MOD 기존 수정 | 1개 (+pubspec.yaml) |
 
 ---
 
