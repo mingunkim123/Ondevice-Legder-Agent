@@ -13,16 +13,16 @@ class LedgerAgentService {
   LedgerAgentService(this._downloadService);
 
   String buildPrompt(String userInput, DateTime now) {
-    final catList = kCategories.map((c) => "\${c.id}(\${c.label})").join(', ');
+    final catList = kCategories.map((c) => "${c.id}(${c.label})").join(', ');
     final todayStr =
-        "\${now.year}-\${now.month.toString().padLeft(2, '0')}-\${now.day.toString().padLeft(2, '0')}";
-    final weekdays = ['월', '화', '수', '목', '금', '토', '일'];
+        "${now.year}-${now.month.toString().padLeft(2, '0')}-${now.day.toString().padLeft(2, '0')}";
+    const weekdays = ['월', '화', '수', '목', '금', '토', '일'];
     final weekdayStr = weekdays[now.weekday - 1];
 
     // Few-shot 예시에 사용할 전날 날짜 계산
     final yesterday = now.subtract(const Duration(days: 1));
     final yesterdayStr =
-        "\${yesterday.year}-\${yesterday.month.toString().padLeft(2, '0')}-\${yesterday.day.toString().padLeft(2, '0')}";
+        "${yesterday.year}-${yesterday.month.toString().padLeft(2, '0')}-${yesterday.day.toString().padLeft(2, '0')}";
 
     return '''
 당신은 가계부 기입을 도와주는 AI 어시스턴트입니다.
@@ -115,7 +115,7 @@ class LedgerAgentService {
         final parsedDate = parseKoreanRelativeDate(userInput, now);
         if (parsedDate != null) {
           jsonMap['date'] =
-              "\${parsedDate.year}-\${parsedDate.month.toString().padLeft(2, '0')}-\${parsedDate.day.toString().padLeft(2, '0')}";
+              "${parsedDate.year}-${parsedDate.month.toString().padLeft(2, '0')}-${parsedDate.day.toString().padLeft(2, '0')}";
         }
       }
 
