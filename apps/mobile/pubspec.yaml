@@ -39,7 +39,7 @@ dependencies:
   path_provider: ^2.1.5
   supabase_flutter: ^2.8.3
   uuid: ^4.5.3
-  # litert_lm: ^0.1.0 # Google AI Edge LiteRT-LM (현재 pub에 존재하지 않아 placeholder로 추가)
+  flutter_gemma: ^0.3.1  # 온디바이스 Gemma LLM 추론 (MediaPipe LLM Inference API)
 
 dev_dependencies:
   flutter_test:

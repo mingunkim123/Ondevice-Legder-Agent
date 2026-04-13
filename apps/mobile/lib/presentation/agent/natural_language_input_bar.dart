@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:ledger_agent/presentation/agent/agent_provider.dart';
+import 'package:ledger_agent/presentation/agent/model_download_indicator.dart';
 
 class NaturalLanguageInputBar extends ConsumerStatefulWidget {
   const NaturalLanguageInputBar({super.key});
@@ -34,6 +35,12 @@ class _NaturalLanguageInputBarState
     final agentState = ref.watch(agentNotifierProvider);
     final isProcessing = agentState.status == AgentStatus.processing;
 
+    // 모델 다운로드가 완료되지 않았으면 입력 비활성화
+    final downloadState = ref.watch(modelDownloadStateProvider);
+    final isModelReady = downloadState.value != null && downloadState.value! >= 1.0;
+
+    final isEnabled = isModelReady && !isProcessing;
+
     return Container(
       padding: const EdgeInsets.fromLTRB(16, 8, 16, 24), // 하단 여백 감안
       decoration: BoxDecoration(
@@ -53,9 +60,9 @@ class _NaturalLanguageInputBarState
             Expanded(
               child: TextField(
                 controller: _controller,
-                enabled: !isProcessing,
+                enabled: isEnabled,
                 decoration: InputDecoration(
-                  hintText: '예: 어제 스타벅스 5400원',
+                  hintText: isModelReady ? '예: 어제 스타벅스 5400원' : 'AI 모델 준비 중...',
                   border: OutlineInputBorder(
                     borderRadius: BorderRadius.circular(24),
                     borderSide: BorderSide.none,
@@ -81,8 +88,10 @@ class _NaturalLanguageInputBarState
                   )
                 : IconButton(
                     icon: const Icon(Icons.send),
-                    color: Theme.of(context).primaryColor,
-                    onPressed: _submit,
+                    color: isEnabled
+                        ? Theme.of(context).primaryColor
+                        : Colors.grey,
+                    onPressed: isEnabled ? _submit : null,
                   ),
           ],
         ),

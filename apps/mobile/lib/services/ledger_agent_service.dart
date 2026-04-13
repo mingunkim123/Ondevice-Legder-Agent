@@ -1,5 +1,13 @@
+// 파일 위치: lib/services/ledger_agent_service.dart
+//
+// [flutter_gemma 0.3.1 동작 방식]
+// flutter_gemma는 모델을 내부적으로 documents_dir/model.bin 경로에 고정 저장한다.
+// 우리의 ModelDownloadService가 같은 경로에 파일을 저장하므로,
+// 다운로드 완료 후 init()만 호출하면 flutter_gemma가 바로 모델을 사용한다.
 import 'dart:async';
 import 'dart:convert';
+import 'package:flutter_gemma/flutter_gemma.dart';
+import 'package:ledger_agent/core/constants/model_config.dart';
 import 'package:ledger_agent/core/utils/date_utils.dart';
 import 'package:ledger_agent/core/utils/amount_utils.dart';
 import 'package:ledger_agent/core/constants/categories.dart';
@@ -10,7 +18,40 @@ import 'package:ledger_agent/services/model_download_service.dart';
 class LedgerAgentService {
   final ModelDownloadService _downloadService;
 
+  // Gemma 모델은 한 번만 초기화하면 GPU 메모리에 상주한다.
+  bool _isInitialized = false;
+
   LedgerAgentService(this._downloadService);
+
+  /// 모델이 로드되지 않았다면 초기화한다.
+  /// 다운로드 완료 후 flutter_gemma의 init()을 호출하는 구조:
+  ///   ModelDownloadService → documents_dir/model.bin 저장
+  ///   → FlutterGemmaPlugin.instance.init() → 네이티브 추론 엔진 초기화
+  Future<void> _ensureModelLoaded() async {
+    if (_isInitialized) return;
+
+    final isReady = await _downloadService.isModelReady();
+    if (!isReady) {
+      throw ModelInferenceException(
+        '모델이 아직 다운로드되지 않았습니다. 잠시 후 다시 시도해주세요.',
+      );
+    }
+
+    try {
+      await FlutterGemmaPlugin.instance.init(
+        maxTokens: kMaxTokens,
+        temperature: kTemperature,
+        topK: kTopK,
+        randomSeed: 1,
+      );
+      _isInitialized = true;
+    } catch (e) {
+      throw ModelInferenceException(
+        '모델 초기화에 실패했습니다. 기기 메모리를 확인해주세요.',
+        debugInfo: e.toString(),
+      );
+    }
+  }
 
   String buildPrompt(String userInput, DateTime now) {
     final catList = kCategories.map((c) => "${c.id}(${c.label})").join(', ');
@@ -19,7 +60,6 @@ class LedgerAgentService {
     const weekdays = ['월', '화', '수', '목', '금', '토', '일'];
     final weekdayStr = weekdays[now.weekday - 1];
 
-    // Few-shot 예시에 사용할 전날 날짜 계산
     final yesterday = now.subtract(const Duration(days: 1));
     final yesterdayStr =
         "${yesterday.year}-${yesterday.month.toString().padLeft(2, '0')}-${yesterday.day.toString().padLeft(2, '0')}";
@@ -51,39 +91,27 @@ class LedgerAgentService {
   }
 
   Future<String> runInference(String prompt) async {
-    // 모델이 디바이스에 준비되었는지 경로 확인
-    await _downloadService.getModelPath();
+    await _ensureModelLoaded();
 
-    // LiteRT-LM 추론 연동 코드가 들어가야 할 곳.
-    // 현재 환경에서는 모델 로드가 불가능하므로 지연 후 응답을 모사(Mock)합니다.
-    await Future.delayed(const Duration(seconds: 1));
-
-    // 테스트용 단순 키워드 분기 (실제 모델이 들어가면 삭제될 Mock 응답들입니다)
-    if (prompt.contains("삭제해") || prompt.contains("지워줘")) {
-      return '{"intent": "delete_last", "amount": null, "date": null, "category_id": null, "memo": null}';
+    try {
+      final response = await FlutterGemmaPlugin.instance.getResponse(
+        prompt: prompt,
+      );
+      return response ?? '';
+    } catch (e) {
+      throw ModelInferenceException(
+        '모델 추론 중 오류가 발생했습니다.',
+        debugInfo: e.toString(),
+      );
     }
-    if (prompt.contains("삭제") && prompt.contains("어제")) {
-      return '{"intent": "delete_by_date", "amount": null, "date": null, "category_id": null, "memo": null}';
-    }
-    if (prompt.contains("얼마야") ||
-        prompt.contains("조회") ||
-        prompt.contains("이번 달")) {
-      return '{"intent": "query_balance", "amount": null, "date": null, "category_id": null, "memo": null}';
-    }
-    if (prompt.contains("ㅁㄴㅇㄹ") || prompt.contains("안녕하세요")) {
-      return '{"intent": "unsupported", "amount": null, "date": null, "category_id": null, "memo": null}';
-    }
-
-    // 기본적으로 지출로 분류되도록 모의 응답 (JSON 파싱 및 Rule-based 보정 검증용)
-    return '{"intent": "record_expense", "amount": null, "date": null, "category_id": null, "memo": null}';
   }
 
   Future<LedgerIntent> processUserInput(String text, DateTime now) async {
     final prompt = buildPrompt(text, now);
     try {
-      final rawOutput = await runInference(
-        prompt,
-      ).timeout(const Duration(seconds: 10));
+      final rawOutput = await runInference(prompt).timeout(
+        const Duration(seconds: 30), // 온디바이스 추론은 최대 30초 허용
+      );
       return parseModelOutput(rawOutput, text, now);
     } catch (e) {
       if (e is TimeoutException) {
@@ -110,7 +138,7 @@ class LedgerAgentService {
 
       final Map<String, dynamic> jsonMap = jsonDecode(match.group(0)!);
 
-      // Rule-based 보정 1: 날짜가 누락되었거나 모델이 추론하지 못한 경우
+      // Rule-based 보정 1: 날짜 누락
       if (jsonMap['date'] == null) {
         final parsedDate = parseKoreanRelativeDate(userInput, now);
         if (parsedDate != null) {
@@ -119,7 +147,7 @@ class LedgerAgentService {
         }
       }
 
-      // Rule-based 보정 2: 금액이 누락된 경우
+      // Rule-based 보정 2: 금액 누락
       if (jsonMap['amount'] == null) {
         final extractedAmt = parseKoreanAmount(null, userInput);
         if (extractedAmt != null) {
@@ -134,13 +162,13 @@ class LedgerAgentService {
         jsonMap['category_id'] = null;
       }
 
-      // Rule-based 보정 4: 금액이 음수인 경우 0으로 만들고 모호 상태 유발
+      // Rule-based 보정 4: 금액 음수
       if (jsonMap['amount'] != null && (jsonMap['amount'] as num) < 0) {
         jsonMap['amount'] = 0;
         jsonMap['ambiguity_reason'] = "금액이 음수입니다. 확인해주세요.";
       }
 
-      // Rule-based 보정 5: 날짜가 미래인 경우 모호 상태 유발
+      // Rule-based 보정 5: 미래 날짜
       if (jsonMap['date'] != null) {
         final d = DateTime.tryParse(jsonMap['date'].toString());
         if (d != null &&
@@ -151,29 +179,24 @@ class LedgerAgentService {
 
       final intent = LedgerIntent.fromJson(jsonMap, userInput);
 
-      // confidence 계산 규칙 적용
       double conf = 0.1;
       if (intent.amount != null) conf += 0.4;
       if (intent.date != null) conf += 0.3;
       if (intent.categoryId != null) conf += 0.3;
-
       intent.confidence = conf > 1.0 ? 1.0 : conf;
 
-      // 추가적인 검증을 통한 상태 강제 조정 (예: 비용 관련인데 금액이 없으면 모호함)
       if ((intent.type == IntentType.recordExpense ||
               intent.type == IntentType.recordIncome) &&
           intent.amount == null) {
-        intent.confidence = 0.5; // 강제로 ambiguous 상태로 이동
+        intent.confidence = 0.5;
       }
 
-      // 미래 날짜이거나 음수 금액 보정 시에도 사용자 확인을 유도
       if (intent.ambiguityReason != null) {
         intent.confidence = 0.5;
       }
 
       return intent;
     } catch (e) {
-      // 1차 파싱 완전 실패시 fallback으로 자체 추출 로직 수행
       final fallbackAmt = parseKoreanAmount(null, userInput);
       if (fallbackAmt != null) {
         return LedgerIntent(
@@ -183,7 +206,7 @@ class LedgerAgentService {
           categoryId: null,
           memo: null,
           rawText: userInput,
-          confidence: 0.5, // 모호 확인 시트 띄우기 위함
+          confidence: 0.5,
           ambiguityReason: "텍스트에서 금액은 찾았지만 내용을 정확히 이해하지 못했어요.",
         );
       }
