@@ -9,7 +9,7 @@
 ## Step 3 완료 후 Frontend Folder Structure
 
 ```mermaid
-graph LR
+flowchart TD
     Root(["apps/mobile/lib/"]):::main
     Root --- MainDart["main.dart"]:::file
 
@@ -19,56 +19,65 @@ graph LR
     Root --- Services["services/"]:::folder
     Root --- Pres["presentation/"]:::folder
 
+    %% 메인 섹션 세로 정렬 강제
+    Core ~~~ Data ~~~ Domain ~~~ Services ~~~ Pres
+
     %% ── core ──
     Core --- C1["constants/"]:::sub
-    C1 --- C1a["categories.dart"]:::file
-
     Core --- C2["network/"]:::sub
-    C2 --- C2a["dio_client.dart"]:::file
-
     Core --- C3["utils/"]:::newsub
+    Core --- C4["exceptions/"]:::newsub
+    C1 ~~~ C2 ~~~ C3 ~~~ C4
+
+    C1 --- C1a["categories.dart"]:::file
+    C2 --- C2a["dio_client.dart"]:::file
     C3 --- C3a["date_utils.dart ✦NEW"]:::newfile
     C3 --- C3b["amount_utils.dart ✦NEW"]:::newfile
-
-    Core --- C4["exceptions/"]:::newsub
     C4 --- C4a["app_exception.dart ✦NEW"]:::newfile
 
     %% ── data ──
     Data --- D1["local/"]:::sub
+    Data --- D2["repositories/"]:::sub
+    D1 ~~~ D2
+
     D1 --- D1a["tables/"]:::sub
-    D1a --- D1a1["transactions_table.dart"]:::file
     D1 --- D1b["database.dart"]:::file
     D1 --- D1c["database.g.dart"]:::file
+    D1a ~~~ D1b ~~~ D1c
 
-    Data --- D2["repositories/"]:::sub
+    D1a --- D1a1["transactions_table.dart"]:::file
     D2 --- D2a["transaction_repository.dart"]:::file
 
     %% ── domain ──
     Domain --- Do1["models/"]:::sub
     Domain --- Do2["agent/"]:::sub
+    Do1 ~~~ Do2
+
     Do2 --- Do2a["ledger_intent.dart"]:::file
     Do2 --- Do2b["prompt_manager.dart ✦NEW"]:::newfile
+    Do2a ~~~ Do2b
 
     %% ── services ──
     Services --- S1["model_download_service.dart ✦NEW"]:::newfile
     Services --- S2["ledger_agent_service.dart ✦NEW"]:::newfile
+    S1 ~~~ S2
 
     %% ── presentation ──
     Pres --- P1["auth/"]:::sub
-    P1 --- P1a["login_screen.dart"]:::file
-
     Pres --- P2["home/"]:::sub
-    P2 --- P2a["home_screen.dart ✎MOD"]:::modfile
-
     Pres --- P3["transaction/"]:::sub
-    P3 --- P3a["add_transaction_screen.dart"]:::file
-
     Pres --- P4["agent/"]:::newsub
+    P1 ~~~ P2 ~~~ P3 ~~~ P4
+
+    P1 --- P1a["login_screen.dart"]:::file
+    P2 --- P2a["home_screen.dart ✎MOD"]:::modfile
+    P3 --- P3a["add_transaction_screen.dart"]:::file
     P4 --- P4a["agent_provider.dart ✦NEW"]:::newfile
     P4 --- P4b["natural_language_input_bar.dart ✦NEW"]:::newfile
     P4 --- P4c["agent_confirm_sheet.dart ✦NEW"]:::newfile
     P4 --- P4d["agent_ambiguous_sheet.dart ✦NEW"]:::newfile
     P4 --- P4e["model_download_indicator.dart ✦NEW"]:::newfile
+    P4a ~~~ P4b ~~~ P4c ~~~ P4d ~~~ P4e
 
     %% ── legend ──
     subgraph Legend [범례]
