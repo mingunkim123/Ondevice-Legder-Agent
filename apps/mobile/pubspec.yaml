@@ -40,6 +40,7 @@ dependencies:
   supabase_flutter: ^2.8.3
   uuid: ^4.5.3
   flutter_gemma: ^0.3.1  # 온디바이스 Gemma LLM 추론 (MediaPipe LLM Inference API)
+  file_picker: ^8.0.0   # SAF 기반 파일 선택 (저장소 권한 불필요)
 
 dev_dependencies:
   flutter_test:
