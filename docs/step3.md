@@ -9,7 +9,7 @@
 ## Step 3 완료 후 Frontend Folder Structure
 
 ```mermaid
-graph TD
+graph LR
     Root(["apps/mobile/lib/"]):::main
     Root --- MainDart["main.dart"]:::file
 
@@ -20,65 +20,55 @@ graph TD
     Root --- Pres["presentation/"]:::folder
 
     %% ── core ──
-    subgraph core_col [" "]
-        Core --- C1["constants/"]:::sub
-        C1 --- C1a["categories.dart"]:::file
+    Core --- C1["constants/"]:::sub
+    C1 --- C1a["categories.dart"]:::file
 
-        Core --- C2["network/"]:::sub
-        C2 --- C2a["dio_client.dart"]:::file
+    Core --- C2["network/"]:::sub
+    C2 --- C2a["dio_client.dart"]:::file
 
-        Core --- C3["utils/"]:::newsub
-        C3 --- C3a["NEW\ndate_utils.dart"]:::newfile
-        C3 --- C3b["NEW\namount_utils.dart"]:::newfile
+    Core --- C3["utils/"]:::newsub
+    C3 --- C3a["date_utils.dart ✦NEW"]:::newfile
+    C3 --- C3b["amount_utils.dart ✦NEW"]:::newfile
 
-        Core --- C4["exceptions/"]:::newsub
-        C4 --- C4a["NEW\napp_exception.dart"]:::newfile
-    end
+    Core --- C4["exceptions/"]:::newsub
+    C4 --- C4a["app_exception.dart ✦NEW"]:::newfile
 
     %% ── data ──
-    subgraph data_col [" "]
-        Data --- D1["local/"]:::sub
-        D1 --- D1a["tables/"]:::sub
-        D1a --- D1a1["transactions_\ntable.dart"]:::file
-        D1 --- D1b["database.dart"]:::file
-        D1 --- D1c["database.g.dart"]:::file
+    Data --- D1["local/"]:::sub
+    D1 --- D1a["tables/"]:::sub
+    D1a --- D1a1["transactions_table.dart"]:::file
+    D1 --- D1b["database.dart"]:::file
+    D1 --- D1c["database.g.dart"]:::file
 
-        Data --- D2["repositories/"]:::sub
-        D2 --- D2a["transaction_\nrepository.dart"]:::file
-    end
+    Data --- D2["repositories/"]:::sub
+    D2 --- D2a["transaction_repository.dart"]:::file
 
     %% ── domain ──
-    subgraph domain_col [" "]
-        Domain --- Do1["models/"]:::sub
-        Domain --- Do2["agent/"]:::sub
-        Do2 --- Do2a["ledger_intent.dart"]:::file
-        Do2 --- Do2b["NEW\nprompt_manager\n.dart"]:::newfile
-    end
+    Domain --- Do1["models/"]:::sub
+    Domain --- Do2["agent/"]:::sub
+    Do2 --- Do2a["ledger_intent.dart"]:::file
+    Do2 --- Do2b["prompt_manager.dart ✦NEW"]:::newfile
 
     %% ── services ──
-    subgraph svc_col [" "]
-        Services --- S1["NEW\nmodel_download_\nservice.dart"]:::newfile
-        Services --- S2["NEW\nledger_agent_\nservice.dart"]:::newfile
-    end
+    Services --- S1["model_download_service.dart ✦NEW"]:::newfile
+    Services --- S2["ledger_agent_service.dart ✦NEW"]:::newfile
 
     %% ── presentation ──
-    subgraph pres_col [" "]
-        Pres --- P1["auth/"]:::sub
-        P1 --- P1a["login_screen.dart"]:::file
+    Pres --- P1["auth/"]:::sub
+    P1 --- P1a["login_screen.dart"]:::file
 
-        Pres --- P2["home/"]:::sub
-        P2 --- P2a["MOD\nhome_screen.dart"]:::modfile
+    Pres --- P2["home/"]:::sub
+    P2 --- P2a["home_screen.dart ✎MOD"]:::modfile
 
-        Pres --- P3["transaction/"]:::sub
-        P3 --- P3a["add_transaction_\nscreen.dart"]:::file
+    Pres --- P3["transaction/"]:::sub
+    P3 --- P3a["add_transaction_screen.dart"]:::file
 
-        Pres --- P4["agent/"]:::newsub
-        P4 --- P4a["NEW\nagent_provider\n.dart"]:::newfile
-        P4 --- P4b["NEW\nnatural_language_\ninput_bar.dart"]:::newfile
-        P4 --- P4c["NEW\nagent_confirm_\nsheet.dart"]:::newfile
-        P4 --- P4d["NEW\nagent_ambiguous_\nsheet.dart"]:::newfile
-        P4 --- P4e["NEW\nmodel_download_\nindicator.dart"]:::newfile
-    end
+    Pres --- P4["agent/"]:::newsub
+    P4 --- P4a["agent_provider.dart ✦NEW"]:::newfile
+    P4 --- P4b["natural_language_input_bar.dart ✦NEW"]:::newfile
+    P4 --- P4c["agent_confirm_sheet.dart ✦NEW"]:::newfile
+    P4 --- P4d["agent_ambiguous_sheet.dart ✦NEW"]:::newfile
+    P4 --- P4e["model_download_indicator.dart ✦NEW"]:::newfile
 
     %% ── legend ──
     subgraph Legend [범례]
@@ -86,9 +76,9 @@ graph TD
         L2["Folder"]:::folder
         L3["Sub Folder"]:::sub
         L4["Files"]:::file
-        L5["NEW Step 3"]:::newfile
-        L6["MOD Step 3"]:::modfile
-        L7["NEW Folder"]:::newsub
+        L5["✦NEW Step 3"]:::newfile
+        L6["✎MOD Step 3"]:::modfile
+        L7["✦NEW Folder"]:::newsub
     end
 
     classDef main fill:#0097A7,stroke:#00796B,color:#fff,stroke-width:2px,rx:20
@@ -99,11 +89,6 @@ graph TD
     classDef modfile fill:#FFE0B2,stroke:#E65100,color:#BF360C,stroke-width:2px
     classDef newsub fill:#26A69A,stroke:#1565C0,color:#fff,stroke-width:2px,stroke-dasharray:5 5
 
-    style core_col fill:none,stroke:none
-    style data_col fill:none,stroke:none
-    style domain_col fill:none,stroke:none
-    style svc_col fill:none,stroke:none
-    style pres_col fill:none,stroke:none
     style Legend fill:#FAFAFA,stroke:#BDBDBD,stroke-width:1px
 ```
 
