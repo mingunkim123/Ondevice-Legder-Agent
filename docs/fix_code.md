@@ -14,6 +14,7 @@
 | 2 | 🔴 Critical | `routes/transactions.ts` | POST 중복 요청에 항상 201 반환 |
 | 3 | 🔴 Critical | `routes/transactions.ts` | DELETE 존재하지 않는 ID에 항상 200 반환 |
 | 4 | 🟡 Medium  | `routes/summary.ts` | total 값 추출 방식 불명확 |
+| 5 | 🔴 Critical | `middleware/auth.ts` | JWT 알고리즘 불일치 — HS256 방식으로 ES256 토큰 검증 시도 |
 
 ---
 
@@ -193,6 +194,115 @@ const total = Number(totalRs.rows[0]?.total ?? 0);
 ### 수정된 파일
 
 - `apps/api/src/routes/summary.ts` — total 추출 라인
+
+---
+
+---
+
+## Fix 5 — JWT 알고리즘 불일치 (HS256 vs ES256)
+
+### 증상
+
+로그인 직후 홈 화면이 뜨자마자 `통계 에러 발생`, `목록 통신 오류` 메시지가 나타나고 wrangler 로그에 아래가 반복됐다.
+
+```
+[wrangler:info] GET /api/transactions/summary 401 Unauthorized
+[wrangler:info] GET /api/transactions 401 Unauthorized
+```
+
+### 원인 찾는 과정
+
+처음에는 auth.ts에 최근 추가된 `atob()` base64 디코딩 코드가 원인일 것이라 의심했다.
+
+```typescript
+// 의심된 코드
+const secretBytes = Uint8Array.from(atob(secretStr), (c) => c.charCodeAt(0));
+```
+
+이를 원래의 `TextEncoder` 방식으로 되돌렸지만 동일하게 401이 발생했다.
+
+auth.ts에 디버그 로그를 추가한 뒤 앱을 실행하자 핵심 단서가 나왔다.
+
+```
+[auth] 토큰 수신, 앞 20자: eyJhbGciOiJFUzI1NiIs
+[auth] JWT_SECRET 로드 여부: true 길이: 88
+✘ [ERROR] [auth] JWT 검증 실패:
+  Key for the ES256 algorithm must be one of type CryptoKey,
+  KeyObject, or JSON Web Key. Received an instance of Uint8Array
+```
+
+토큰 앞부분 `eyJhbGciOiJFUzI1NiIs`를 base64 디코딩하면 `{"alg":"ES256",` 이다. 토큰이 **ES256** 방식으로 서명되어 있었던 것.
+
+### 왜 이런 일이 생겼나
+
+Supabase는 과거에 **HS256** (HMAC — 대칭 키)을 기본 알고리즘으로 사용했다. HS256은 서버가 하나의 비밀 문자열(`SUPABASE_JWT_SECRET`)로 서명하고 검증하는 방식이라, 아래처럼 간단하게 구현할 수 있었다.
+
+```typescript
+// HS256 시절 — 비밀 문자열 하나로 검증
+const secret = new TextEncoder().encode(process.env.SUPABASE_JWT_SECRET);
+const { payload } = await jwtVerify(token, secret);
+```
+
+그런데 이 프로젝트의 Supabase 프로젝트는 더 최신에 만들어졌고, **ES256** (ECDSA — 비대칭 키)을 사용한다. ES256은 **개인 키(private key)로 서명하고, 공개 키(public key)로 검증**하는 방식이다.
+
+| 항목 | HS256 (구) | ES256 (신) |
+|------|------------|------------|
+| 종류 | 대칭 암호화 | 비대칭 암호화 |
+| 서명 | 비밀 문자열 | 개인 키 |
+| 검증 | 동일한 비밀 문자열 | **공개 키** |
+| 검증 키 출처 | `.dev.vars`의 JWT_SECRET | Supabase JWKS 엔드포인트 |
+
+공개 키를 직접 하드코딩할 수도 있지만, Supabase는 **JWKS(JSON Web Key Set) 엔드포인트**를 제공한다. 이 URL에 접속하면 현재 유효한 공개 키 목록을 JSON으로 돌려준다.
+
+```
+https://<project-ref>.supabase.co/auth/v1/.well-known/jwks.json
+```
+
+`jose` 라이브러리의 `createRemoteJWKSet`을 사용하면 이 엔드포인트에서 공개 키를 자동으로 받아오고 캐싱까지 해준다.
+
+### 수정 내용
+
+**`apps/api/src/middleware/auth.ts`**
+
+```typescript
+// 수정 전 — HS256 방식 (ES256 토큰에 작동 안 함)
+const secret = new TextEncoder().encode(c.env.SUPABASE_JWT_SECRET as string);
+const { payload } = await jwtVerify(token, secret);
+
+// 수정 후 — JWKS 엔드포인트에서 ES256 공개 키를 받아와 검증
+const jwksUrl = new URL(`${c.env.SUPABASE_URL}/auth/v1/.well-known/jwks.json`);
+const JWKS = createRemoteJWKSet(jwksUrl);
+const { payload } = await jwtVerify(token, JWKS);
+```
+
+**`apps/api/src/index.ts`**
+
+```typescript
+// 수정 전
+Bindings: { TURSO_DATABASE_URL: string; TURSO_AUTH_TOKEN: string; SUPABASE_JWT_SECRET: string }
+
+// 수정 후 — JWT_SECRET 제거, SUPABASE_URL 추가
+Bindings: { TURSO_DATABASE_URL: string; TURSO_AUTH_TOKEN: string; SUPABASE_URL: string }
+```
+
+**`apps/api/.dev.vars`**
+
+```diff
+- SUPABASE_JWT_SECRET="EJcsEWsjngg..."
++ SUPABASE_URL="https://gndauofpuqmhpmobshnm.supabase.co"
+```
+
+> `.dev.vars`를 변경한 경우 `wrangler dev`를 완전히 재시작해야 반영된다. hot reload로는 환경변수 변경이 적용되지 않는다.
+
+### 배운 점
+
+- JWT 토큰의 알고리즘은 토큰 첫 번째 부분(헤더)에 명시되어 있다. base64 디코딩하면 바로 확인 가능하다.
+  ```
+  eyJhbGciOiJFUzI1NiIs → {"alg":"ES256", ...}
+  eyJhbGciOiJIUzI1NiIs → {"alg":"HS256", ...}
+  ```
+- Supabase 신규 프로젝트는 ES256을 기본으로 사용한다. 인터넷에 있는 오래된 튜토리얼의 HS256 예제 코드를 그대로 쓰면 동작하지 않는다.
+- `SUPABASE_JWT_SECRET`은 ES256에서는 필요 없다. JWKS 엔드포인트가 공개 키를 관리해준다.
 
 ---
 

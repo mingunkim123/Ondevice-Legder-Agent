@@ -5,7 +5,7 @@ import { cors } from 'hono/cors';
 import transactionsRoute from './routes/transactions';
 import summaryRoute from './routes/summary';
 
-const app = new Hono<{ Bindings: { TURSO_DATABASE_URL: string; TURSO_AUTH_TOKEN: string; SUPABASE_JWT_SECRET: string }, Variables: { userId: string } }>();
+const app = new Hono<{ Bindings: { TURSO_DATABASE_URL: string; TURSO_AUTH_TOKEN: string; SUPABASE_URL: string }, Variables: { userId: string } }>();
 
 // 1. 웹 브라우저나 스마트폰 등 외부에서 서버에 접근할 수 있게 허락해 주는 설정
 app.use('/*', cors());

@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
 import '../../data/repositories/transaction_repository.dart';
 import '../transaction/add_transaction_screen.dart';
 import '../agent/natural_language_input_bar.dart';
@@ -88,8 +89,15 @@ class HomeScreen extends ConsumerWidget {
             icon: const Icon(Icons.refresh),
             tooltip: '새로고침',
             onPressed: () {
-              ref.invalidate(summaryProvider); // 최신 데이터로 새로고침(통계)
-              ref.invalidate(transactionsProvider); // 최신 데이터로 새로고침(목록)
+              ref.invalidate(summaryProvider);
+              ref.invalidate(transactionsProvider);
+            },
+          ),
+          IconButton(
+            icon: const Icon(Icons.logout),
+            tooltip: '로그아웃',
+            onPressed: () async {
+              await Supabase.instance.client.auth.signOut();
             },
           ),
         ],

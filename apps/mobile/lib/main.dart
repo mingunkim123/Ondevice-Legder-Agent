@@ -14,11 +14,12 @@ void main() async {
   await Supabase.initialize(
     url: const String.fromEnvironment(
       'SUPABASE_URL',
-      defaultValue: 'https://your-project-url.supabase.co',
+      defaultValue: 'https://gndauofpuqmhpmobshnm.supabase.co',
     ),
     anonKey: const String.fromEnvironment(
       'SUPABASE_ANON_KEY',
-      defaultValue: 'your-anon-key',
+      defaultValue:
+          'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImduZGF1b2ZwdXFtaHBtb2JzaG5tIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzYwNTgyMDUsImV4cCI6MjA5MTYzNDIwNX0.0rxdgkl1EemyBVMll7c47UcGkKCddxPcsVSsOVkvUWw',
     ),
   );
 

@@ -24,7 +24,7 @@ class DioClient {
     // 실기기 테스트: flutter run --dart-define=API_BASE_URL=http://192.168.x.x:8787
     const baseUrl = String.fromEnvironment(
       'API_BASE_URL',
-      defaultValue: 'http://172.24.113.222:8787',
+      defaultValue: 'http://172.24.117.220:8787',
     );
 
     dio = Dio(
