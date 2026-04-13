@@ -6,6 +6,136 @@
 
 ---
 
+## Step 3 완료 후 Frontend Folder Structure
+
+> 색상 기준: 🟢 기존 파일 · 🔵 Step 3 신규 생성 · 🟠 Step 3에서 수정 · ⬜ 기존 빈 폴더(예정)
+
+```mermaid
+graph TD
+    Root["apps/mobile/lib/"]:::main
+
+    %% ── core/ ──
+    Core["core/"]:::folder
+    CoreConst["constants/"]:::sub
+    CoreConstCat["categories.dart"]:::existing
+    CoreNet["network/"]:::sub
+    CoreNetDio["dio_client.dart"]:::existing
+    CoreUtils["utils/"]:::sub
+    CoreUtilsDate["🔵 date_utils.dart"]:::new
+    CoreUtilsAmount["🔵 amount_utils.dart"]:::new
+    CoreExcept["exceptions/"]:::newsub
+    CoreExceptApp["🔵 app_exception.dart"]:::new
+
+    Root --> MainDart["main.dart"]:::existing
+    Root --> Core
+    Core --> CoreConst --> CoreConstCat
+    Core --> CoreNet --> CoreNetDio
+    Core --> CoreUtils
+    CoreUtils --> CoreUtilsDate
+    CoreUtils --> CoreUtilsAmount
+    Core --> CoreExcept --> CoreExceptApp
+
+    %% ── data/ ──
+    Data["data/"]:::folder
+    DataLocal["local/"]:::sub
+    DataLocalTbl["tables/"]:::sub
+    DataLocalTblTx["transactions_table.dart"]:::existing
+    DataLocalDb["database.dart"]:::existing
+    DataLocalDbG["database.g.dart"]:::existing
+    DataLocalDao["dao/"]:::emptysub
+    DataRepo["repositories/"]:::sub
+    DataRepoTx["transaction_repository.dart"]:::existing
+    DataRemote["remote/"]:::emptysub
+
+    Root --> Data
+    Data --> DataLocal
+    DataLocal --> DataLocalTbl --> DataLocalTblTx
+    DataLocal --> DataLocalDb
+    DataLocal --> DataLocalDbG
+    DataLocal --> DataLocalDao
+    Data --> DataRepo --> DataRepoTx
+    Data --> DataRemote
+
+    %% ── domain/ ──
+    Domain["domain/"]:::folder
+    DomainModels["models/"]:::emptysub
+    DomainAgent["agent/"]:::sub
+    DomainAgentIntent["ledger_intent.dart"]:::existing
+    DomainAgentPrompt["🔵 prompt_manager.dart"]:::new
+
+    Root --> Domain
+    Domain --> DomainModels
+    Domain --> DomainAgent
+    DomainAgent --> DomainAgentIntent
+    DomainAgent --> DomainAgentPrompt
+
+    %% ── services/ ──
+    Services["services/"]:::folder
+    SvcDownload["🔵 model_download_service.dart"]:::new
+    SvcAgent["🔵 ledger_agent_service.dart"]:::new
+
+    Root --> Services
+    Services --> SvcDownload
+    Services --> SvcAgent
+
+    %% ── presentation/ ──
+    Pres["presentation/"]:::folder
+
+    PresAuth["auth/"]:::sub
+    PresAuthLogin["login_screen.dart"]:::existing
+
+    PresHome["home/"]:::sub
+    PresHomeScreen["🟠 home_screen.dart"]:::modified
+    PresHomeWidgets["widgets/"]:::emptysub
+
+    PresTx["transaction/"]:::sub
+    PresTxAdd["add_transaction_screen.dart"]:::existing
+    PresTxWidgets["widgets/"]:::emptysub
+
+    PresAgent["agent/"]:::newsub
+    PresAgentProvider["🔵 agent_provider.dart"]:::new
+    PresAgentNLBar["🔵 natural_language_input_bar.dart"]:::new
+    PresAgentConfirm["🔵 agent_confirm_sheet.dart"]:::new
+    PresAgentAmbig["🔵 agent_ambiguous_sheet.dart"]:::new
+    PresAgentDLInd["🔵 model_download_indicator.dart"]:::new
+
+    Root --> Pres
+    Pres --> PresAuth --> PresAuthLogin
+    Pres --> PresHome
+    PresHome --> PresHomeScreen
+    PresHome --> PresHomeWidgets
+    Pres --> PresTx
+    PresTx --> PresTxAdd
+    PresTx --> PresTxWidgets
+    Pres --> PresAgent
+    PresAgent --> PresAgentProvider
+    PresAgent --> PresAgentNLBar
+    PresAgent --> PresAgentConfirm
+    PresAgent --> PresAgentAmbig
+    PresAgent --> PresAgentDLInd
+
+    %% ── styles ──
+    classDef main fill:#0097A7,stroke:#00796B,color:#fff,stroke-width:2px
+    classDef folder fill:#FF9800,stroke:#F57C00,color:#fff,stroke-width:2px
+    classDef sub fill:#26A69A,stroke:#00897B,color:#fff,stroke-width:1px
+    classDef newsub fill:#26A69A,stroke:#1565C0,color:#fff,stroke-width:3px,stroke-dasharray:5 5
+    classDef existing fill:#E0E0E0,stroke:#9E9E9E,color:#333,stroke-width:1px
+    classDef new fill:#BBDEFB,stroke:#1565C0,color:#0D47A1,stroke-width:2px
+    classDef modified fill:#FFE0B2,stroke:#E65100,color:#BF360C,stroke-width:2px
+    classDef emptysub fill:#26A69A,stroke:#9E9E9E,color:#fff,stroke-width:1px,stroke-dasharray:3 3
+```
+
+### 파일 수 요약
+
+| 구분 | 수량 | 파일 |
+|------|------|------|
+| 🟢 기존 유지 | 8개 | categories.dart, dio_client.dart, main.dart, transactions_table.dart, database.dart, database.g.dart, transaction_repository.dart, login_screen.dart, add_transaction_screen.dart |
+| 🔵 신규 생성 | 10개 | date_utils.dart, amount_utils.dart, app_exception.dart, prompt_manager.dart, model_download_service.dart, ledger_agent_service.dart, agent_provider.dart, natural_language_input_bar.dart, agent_confirm_sheet.dart, agent_ambiguous_sheet.dart, model_download_indicator.dart |
+| 🟠 기존 수정 | 1개 | home_screen.dart |
+| 🟠 설정 수정 | 1개 | pubspec.yaml (lib/ 외부) |
+
+---
+
 ## 현재 완료된 것 (Step 2 산출물)
 
 | 파일 | 상태 |
